@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fun Time: Watch Party App</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Load YouTube Iframe API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        
+        /* Custom Styling for the Single-File Mandate and Aesthetics */
+        .app-container { min-height: 100vh; display: flex; flex-direction: column; }
+        .tab-button {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            border-radius: 0.5rem 0.5rem 0 0;
+            font-weight: 600;
+            transition: all 0.3s ease-in-out;
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+        .tab-button.active {
+            background-color: #ffffff;
+            color: #1d4ed8;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .chat-container { height: 400px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+        
+        /* Animations */
+        @keyframes pulse-admin {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+        }
+        .admin-tag {
+            animation: pulse-admin 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Admin Login Modal (Hidden by default) -->
+    <div id="admin-login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm">
+            <h3 class="text-2xl font-bold mb-4 text-center text-blue-600">Admin Login</h3>
+            <p class="text-sm text-gray-500 mb-6 text-center">Enter the administrator credentials.</p>
+            <input type="text" id="admin-username-input" placeholder="Username" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500">
+            <input type="password" id="admin-password-input" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:ring-blue-500 focus:border-blue-500">
+            <button onclick="adminLogin()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition">Log In</button>
+            <button onclick="document.getElementById('admin-login-modal').classList.add('hidden')" class="w-full mt-3 text-gray-600 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Cancel</button>
+            <p id="admin-login-status" class="text-sm mt-3 text-center"></p>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal (Hidden by default) -->
+    <div id="admin-panel-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+            <h3 class="text-2xl font-bold mb-4 text-center text-red-600">Admin Control Panel</h3>
+            <div class="space-y-4">
+                <div class="border p-4 rounded-lg">
+                    <h4 class="font-semibold text-lg mb-2">1. Set Room Status</h4>
+                    <input type="text" id="admin-status-input" placeholder="Enter new room status (e.g., Taking a break...)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                    <button onclick="setRoomStatus()" class="w-full mt-2 bg-red-500 text-white p-2 rounded-lg font-semibold hover:bg-red-600 transition">Update Status</button>
+                </div>
+                <div class="border p-4 rounded-lg">
+                    <h4 class="font-semibold text-lg mb-2">2. Log Current Movie to History</h4>
+                    <button onclick="logCurrentMovieToHistory()" class="w-full bg-green-500 text-white p-2 rounded-lg font-semibold hover:bg-green-600 transition">Add to History</button>
+                </div>
+            </div>
+            <button onclick="document.getElementById('admin-panel-modal').classList.add('hidden')" class="w-full mt-6 text-gray-600 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Close</button>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="app-container max-w-6xl mx-auto bg-white shadow-xl">
+
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 shadow-lg flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold tracking-tight">Fun Time</h1>
+            <div class="flex items-center space-x-3 text-sm">
+                <span id="auth-status" class="font-medium">Loading...</span>
+                <button id="admin-panel-button" onclick="document.getElementById('admin-panel-modal').classList.remove('hidden')" class="hidden px-3 py-1 bg-red-500 rounded-lg font-semibold hover:bg-red-600 transition transform hover:scale-105">Admin Panel</button>
+                <button onclick="showAdminLoginModal()" class="px-3 py-1 bg-yellow-500 text-gray-800 rounded-lg font-semibold hover:bg-yellow-600 transition transform hover:scale-105">Admin Login</button>
+                <button id="auth-button" onclick="signOutUser()" class="px-3 py-1 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-200 transition">Sign Out</button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 bg-gray-50">
+            <button id="tab-watch" class="tab-button active flex items-center space-x-2" onclick="switchView('watch')">
+                <i class="fas fa-tv"></i>
+                <span>Watch Room</span>
+            </button>
+            <button id="tab-explore" class="tab-button flex items-center space-x-2" onclick="switchView('explore')">
+                <i class="fas fa-search"></i>
+                <span>Explore</span>
+            </button>
+            <button id="tab-history" class="tab-button flex items-center space-x-2" onclick="switchView('history')">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </button>
+            <button id="tab-admin" class="tab-button flex items-center space-x-2 hidden" onclick="switchView('admin-tools')">
+                <i class="fas fa-toolbox"></i>
+                <span>Admin Tools</span>
+            </button>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="p-4 flex-1">
+            
+            <!-- 1. Watch Room Section -->
+            <section id="watch-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
+                
+                <!-- Left Column: Video Player and Info -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="bg-gray-900 rounded-xl shadow-lg aspect-video w-full overflow-hidden">
+                        <!-- The movie-player ID is the container for either the YT Iframe Player or the placeholder/HTML video -->
+                        <div id="movie-player" class="w-full h-full flex flex-col justify-center items-center text-white">
+                            <!-- Player content goes here -->
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow border border-blue-100">
+                        <h2 class="text-xl font-bold mb-2 text-blue-700">Room Status & Current Content</h2>
+                        <p id="room-status" class="text-gray-700 text-lg font-semibold italic"></p>
+                        <p id="current-movie-title" class="text-md text-gray-600 mt-1 font-medium"></p>
+                    </div>
+
+                    <!-- AI Facts Section -->
+                    <div id="ai-facts-container" class="bg-white p-4 rounded-xl shadow border border-green-100 hidden">
+                        <h2 class="text-xl font-bold mb-2 text-green-700 flex items-center space-x-2">
+                            <i class="fas fa-robot"></i> <span>AI Movie Summary & Facts</span>
+                        </h2>
+                        <div id="ai-facts-content" class="text-gray-700 text-sm space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Chat -->
+                <div class="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col">
+                    <h2 class="text-xl font-bold p-4 border-b text-gray-800">Live Chat</h2>
+                    <div id="chat-feed" class="chat-container flex-1 p-4 space-y-3">
+                        <!-- Chat messages will be dynamically added here -->
+                    </div>
+                    <form id="chat-form" class="p-4 border-t bg-gray-50 flex space-x-2" onsubmit="sendChatMessage(event)">
+                        <input type="text" id="chat-input" placeholder="Type your message..." class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+
+            </section>
+
+            <!-- 2. Explore Section (Mock API) -->
+            <section id="explore-section" class="hidden fade-in">
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Explore Movies</h2>
+                    <input type="text" id="explore-search" oninput="filterExploreMovies()" placeholder="Search movie titles..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                <div id="explore-movie-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <!-- Movie cards will be rendered here -->
+                </div>
+            </section>
+
+            <!-- 3. History Section -->
+            <section id="history-section" class="hidden fade-in">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Watched History</h2>
+                <div id="history-list" class="space-y-4">
+                    <!-- History items will be rendered here -->
+                </div>
+            </section>
+
+            <!-- 4. Admin Tools Section -->
+            <section id="admin-tools-section" class="hidden fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Content Management -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-red-200">
+                        <h2 class="text-2xl font-bold mb-4 text-red-600 flex items-center space-x-2">
+                            <i class="fas fa-video"></i> <span>Content Management</span>
+                        </h2>
+                        <input type="text" id="content-title-input" placeholder="Movie/Video Title" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:ring-red-500 focus:border-red-500">
+                        <input type="text" id="content-url-input" placeholder="Video/Streaming URL (YouTube link recommended)" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-red-500 focus:border-red-500">
+                        <button onclick="updateWatchPartyContent()" class="w-full bg-red-600 text-white p-3 rounded-lg font-semibold hover:bg-red-700 transition transform hover:scale-105">Update Watch Party Content</button>
+                    </div>
+
+                    <!-- AI Summary Tool -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-green-200">
+                        <h2 class="text-2xl font-bold mb-4 text-green-600 flex items-center space-x-2">
+                            <i class="fas fa-brain"></i> <span>AI Summary Generator</span>
+                        </h2>
+                        <p class="text-sm text-gray-600 mb-4">Uses the movie title to fetch a summary and facts via Google's Gemini API.</p>
+                        <button id="generate-ai-summary-btn" onclick="generateAISummary()" class="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition transform hover:scale-105">Generate AI Summary & Facts</button>
+                        <p id="ai-summary-status" class="mt-3 text-sm italic text-gray-500"></p>
+                    </div>
+
+                    <!-- Westeros Trivia Tool -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg border border-yellow-200">
+                        <h2 class="text-2xl font-bold mb-4 text-yellow-700 flex items-center space-x-2">
+                            <i class="fas fa-dragon"></i> <span>Westeros Trivia Tool (External API)</span>
+                        </h2>
+                        <p class="text-sm text-gray-600 mb-4">Fetch character details from the "An API of Ice and Fire".</p>
+                        <input type="text" id="westeros-search-input" placeholder="Enter Character Name (e.g., Daenerys)" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:ring-yellow-500 focus:border-yellow-500">
+                        <button onclick="searchWesterosCharacter()" class="w-full bg-yellow-600 text-gray-800 p-3 rounded-lg font-semibold hover:bg-yellow-700 transition transform hover:scale-105">Search Westeros Character</button>
+                        <div id="westeros-results" class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm"></div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+
+    <!-- Global JavaScript for YouTube API -->
+    <script>
+        // Global variables for the YouTube Iframe Player API
+        window.youtubePlayer = null;
+        window.currentVideoId = null;
+        
+        /**
+         * The YouTube API calls this global function once the API script is fully loaded.
+         */
+        window.onYouTubeIframeAPIReady = function() {
+            console.log("YouTube API is ready.");
+            // If a video ID was set via Firestore before the API loaded, initialize the player now.
+            // This is handled by the initializeFirebase -> onSnapshot flow, which calls updateVideoPlayer.
+        };
+        
+        /**
+         * Creates or recreates the YouTube player instance in the 'movie-player' div.
+         */
+        window.initYouTubePlayer = function(videoId) {
+            if (window.youtubePlayer) {
+                // Destroy previous instance to ensure clean re-initialization
+                try {
+                    window.youtubePlayer.destroy(); 
+                } catch(e) {
+                    console.warn("Could not destroy previous YT Player instance:", e);
+                }
+                window.youtubePlayer = null;
+            }
+            
+            // Ensure the container is empty before creating the player
+            const playerElement = document.getElementById('movie-player');
+            playerElement.innerHTML = '';
+            
+            window.youtubePlayer = new YT.Player('movie-player', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 1,
+                    'rel': 0, // No related videos
+                    'modestbranding': 1, // Minimal branding
+                    'fs': 1, // Fullscreen button
+                    // FIX: Added origin parameter to resolve "embedder.identity.missing.referrer" error in restricted environments (iframes).
+                    'origin': window.location.origin, 
+                },
+                events: {
+                    // Start playing once the player is ready
+                    'onReady': (event) => { event.target.playVideo(); },
+                    'onError': (error) => { 
+                        console.error("YouTube Player Error:", error); 
+                        playerElement.innerHTML = `<div class="w-full h-full bg-red-900 flex flex-col justify-center items-center p-6 text-white"><i class="fas fa-exclamation-triangle text-6xl text-red-400 mb-4"></i><p class="text-xl font-semibold text-red-300">YouTube Error</p><p class="text-sm text-red-400">Could not load video ID: ${videoId}. Error Code: ${error.data}</p></div>`;
+                        window.youtubePlayer = null; // Mark player as failed
+                    }
+                }
+            });
+        }
+    </script>
+
+    <!-- Module Script for Firebase and Application Logic -->
+    <script type="module">
+        // Import necessary Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set log level to debug for better diagnostics
+        setLogLevel('debug');
+
+        // --- GLOBAL VARIABLES (For local testing/Canvas environment) ---
+        let app;
+        let db;
+        let auth;
+        let currentUserId = 'unknown';
+        let isAdmin = false;
+        let currentRoomData = {};
+        
+        // Flag to prevent onSnapshot listeners from being attached multiple times
+        let listenersAttached = false; 
+        // Array to hold unsubscribe functions for cleanup
+        let unsubscribeFunctions = [];
+
+        // --- Admin Credentials (for custom login) ---
+        const ADMIN_USERNAME = 'shivansh';
+        const ADMIN_PASSWORD = 'gtrx gtr';
+
+        // --- Firebase API URL (for Gemini/AI calls) ---
+        const API_KEY = ""; // This will be provided by the Canvas runtime
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        
+        // --- Firebase Config Setup for Local Testing ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-fun-time-app';
+        let firebaseConfig = {}; 
+        let initialAuthToken = null; 
+
+        if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+            console.warn("Running locally: Using mock Firebase configuration.");
+            firebaseConfig = {
+                apiKey: "MOCK_API_KEY_FOR_LOCAL_TESTING", 
+                authDomain: "mock-project.firebaseapp.com",
+                projectId: "mock-project-id",
+                storageBucket: "mock-project-id.appspot.com",
+                messagingSenderId: "123456789012",
+                appId: "1:123456789012:web:abcdefg123456"
+            };
+        } else {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+                initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            } catch(e) {
+                console.error("Error parsing __firebase_config:", e);
+            }
+        }
+        
+        const isFirebaseEnabled = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "MOCK_API_KEY_FOR_LOCAL_TESTING";
+        
+        // --- Utility Functions ---
+
+        /**
+         * Safely fetches data with exponential backoff for API calls.
+         */
+        async function fetchWithBackoff(url, options, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API call failed with status ${response.status}: ${errorBody}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * Helper to validate a YouTube URL and extract its video ID.
+         */
+        function getYouTubeVideoId(url) {
+            if (!url) return null;
+            // Matches v=ID or /embed/ID or /watch?v=ID or youtu.be/ID
+            const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(regex);
+            return (match && match[1].length === 11) ? match[1] : null;
+        }
+
+        /**
+         * Updates the video player element based on the current room content.
+         */
+        function updateVideoPlayer(url, title) {
+            const playerElement = document.getElementById('movie-player');
+            const titleDisplay = document.getElementById('current-movie-title');
+            const videoId = getYouTubeVideoId(url);
+            
+            titleDisplay.textContent = title ? `Title: ${title}` : 'Title: Not set';
+
+            // 1. YouTube Video Logic
+            if (videoId) {
+                window.currentVideoId = videoId; // Store for YT API access
+                
+                // If the YT API script and player are ready, load the video
+                if (window.YT && window.YT.Player) {
+                    // If player is already initialized, just load the new video ID
+                    if (window.youtubePlayer) {
+                        window.youtubePlayer.loadVideoById(videoId);
+                    } 
+                    // Otherwise, initialize the player
+                    else {
+                        window.initYouTubePlayer(videoId);
+                    }
+                } 
+                // If YT API is not yet ready, show loading state and let onYouTubeIframeAPIReady handle it.
+                else {
+                    playerElement.innerHTML = `
+                        <div id="yt-placeholder" class="w-full h-full flex flex-col justify-center items-center text-white bg-gray-800">
+                            <i class="fas fa-spinner fa-spin text-4xl text-red-500 mb-4"></i>
+                            <p class="text-lg font-semibold text-gray-300">Loading YouTube Player...</p>
+                        </div>
+                    `;
+                }
+            } 
+            // 2. Non-YouTube Video Logic (Standard HTML video)
+            else if (url && url.length > 5) {
+                // If a YouTube player was active, destroy it before inserting the video tag
+                if (window.youtubePlayer) {
+                    window.youtubePlayer.destroy();
+                    window.youtubePlayer = null;
+                }
+                window.currentVideoId = null;
+
+                playerElement.innerHTML = `
+                    <video 
+                        width="100%" 
+                        height="100%" 
+                        controls 
+                        autoplay 
+                        class="object-cover rounded-xl"
+                        onerror="this.parentNode.innerHTML='<div class=\\'w-full h-full bg-red-900 flex flex-col justify-center items-center p-6\\'><i class=\\'fas fa-exclamation-triangle text-6xl text-red-400 mb-4\\'></i><p class=\\'text-xl font-semibold text-red-300\\'>Error Loading Video</p><p class=\\'text-sm text-red-400\\'>URL/CORS Issue? URL: ${url.substring(0, 40)}...</p></div>'">
+                        <source src="${url}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                `;
+            } 
+            // 3. Default Placeholder Logic
+            else {
+                // If a YouTube player was active, destroy it
+                if (window.youtubePlayer) {
+                    window.youtubePlayer.destroy();
+                    window.youtubePlayer = null;
+                }
+                window.currentVideoId = null;
+
+                // Show default placeholder
+                playerElement.innerHTML = `
+                    <div class="w-full h-full bg-gray-900 flex flex-col justify-center items-center p-6">
+                        <i class="fas fa-play-circle text-6xl text-blue-500 mb-4 animate-pulse"></i>
+                        <p class="text-xl font-semibold text-gray-300 mb-2">Watch Party Ready</p>
+                        <p class="text-sm text-gray-400">Waiting for Admin to set the movie content.</p>
+                    </div>
+                `;
+            }
+        }
+
+
+        // --- Firebase Initialization and Authentication ---
+
+        /**
+         * Initializes Firebase and handles the authentication process.
+         */
+        async function initializeFirebase() {
+            if (!isFirebaseEnabled) {
+                document.getElementById('auth-status').textContent = 'DB Disabled';
+                document.getElementById('auth-status').classList.add('text-yellow-400');
+                console.warn("Running locally: Using mock Firebase configuration.");
+                // Update player to show disabled status
+                updateVideoPlayer(null, 'Database Disabled');
+                return;
+            }
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 1. Authentication Logic - Await the initial sign-in
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 2. Set up Auth State Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        document.getElementById('auth-status').textContent = 'Signed in';
+                        // Check if the user is a Google user
+                        if (user.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)) {
+                            document.getElementById('auth-status').textContent = `Signed in as: ${user.displayName || 'Google User'}`;
+                        }
+                        
+                        // CRITICAL FIX: Only call setupRealtimeListeners if not yet attached.
+                        if (!listenersAttached) {
+                            setupRealtimeListeners(); 
+                        }
+
+                    } else {
+                        currentUserId = 'unknown';
+                        document.getElementById('auth-status').textContent = 'Signed out';
+                        
+                        // Cleanup: Unsubscribe from all listeners when the user signs out
+                        unsubscribeFunctions.forEach(unsub => unsub());
+                        unsubscribeFunctions = [];
+                        listenersAttached = false;
+                    }
+                    loadExploreMovies(); // Load mock movies
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                document.getElementById('auth-status').textContent = `DB Error: ${error.code || error.message}`;
+            }
+        }
+
+        // --- Core Application Logic (Watch Room) ---
+
+        /**
+         * Sets up all real-time listeners for chat, room status, and history.
+         * Only runs once due to the listenersAttached flag check in onAuthStateChanged.
+         */
+        function setupRealtimeListeners() {
+            if (listenersAttached) {
+                console.log("[Firestore Setup] Listeners already attached. Skipping setup.");
+                return;
+            }
+
+            // Check added to ensure DB and an authenticated user are present before attaching listeners
+            if (!db || !auth || !auth.currentUser) {
+                console.warn("Firestore listeners skipped: DB, Auth or current user is not ready.");
+                return;
+            }
+            console.log(`[Firestore Setup] Attaching listeners for user: ${auth.currentUser.uid}`);
+
+
+            // 1. Listen for Chat Messages
+            const chatPath = `artifacts/${appId}/public/data/chat`;
+            const chatQuery = query(collection(db, chatPath), orderBy('timestamp', 'desc'));
+            const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+                const chatFeed = document.getElementById('chat-feed');
+                chatFeed.innerHTML = '';
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    const isCurrentUser = data.userId === currentUserId;
+                    // Note: Simplified admin check for chat
+                    const isChatAdmin = data.isAdmin || data.userId === 'admin-shivansh'; 
+                    
+                    const messageClass = isCurrentUser ? 'bg-blue-100 self-end' : 'bg-gray-100 self-start';
+                    const nameClass = isCurrentUser ? 'text-blue-600' : 'text-gray-600';
+                    const adminLabel = isChatAdmin ? '<span class="text-red-500 font-bold admin-tag"> [ADMIN]</span>' : '';
+                    
+                    chatFeed.insertAdjacentHTML('beforeend', `
+                        <div class="max-w-[80%] p-3 rounded-xl shadow-sm ${messageClass} fade-in">
+                            <span class="font-semibold ${nameClass}">${data.userName || 'Guest'}</span>${adminLabel}
+                            <p class="text-gray-800 break-words">${data.message}</p>
+                            <span class="text-xs text-gray-500 float-right mt-1">${new Date(data.timestamp?.seconds * 1000).toLocaleTimeString()}</span>
+                        </div>
+                    `);
+                });
+                chatFeed.scrollTop = chatFeed.scrollHeight; // Keep at the bottom
+            }, (error) => {
+                // ADDED ERROR HANDLER
+                console.error("Chat Listener Error: Failed to fetch chat messages. Error:", error.message);
+            });
+            unsubscribeFunctions.push(unsubscribeChat); // Store unsubscribe function
+
+            // 2. Listen for Room Status (Single Document)
+            const roomDocRef = doc(db, `artifacts/${appId}/public/data/room/status`);
+            const unsubscribeRoom = onSnapshot(roomDocRef, (doc) => {
+                if (doc.exists()) {
+                    currentRoomData = doc.data();
+                    document.getElementById('room-status').textContent = currentRoomData.status || 'Room is active.';
+                    // CRITICAL: Update video player with new content
+                    updateVideoPlayer(currentRoomData.currentVideoUrl, currentRoomData.currentMovieTitle);
+                    
+                    // Update AI facts section
+                    const factsContainer = document.getElementById('ai-facts-container');
+                    const factsContent = document.getElementById('ai-facts-content');
+                    if (currentRoomData.aiSummary) {
+                        factsContainer.classList.remove('hidden');
+                        factsContent.innerHTML = currentRoomData.aiSummary;
+                    } else {
+                        factsContainer.classList.add('hidden');
+                        factsContent.innerHTML = '';
+                    }
+                } else {
+                    document.getElementById('room-status').textContent = 'Welcome to Fun Time! Admin needs to set content.';
+                    setDoc(roomDocRef, { 
+                        status: 'Room is active.', 
+                        currentMovieTitle: '', 
+                        currentVideoUrl: '' 
+                    }, { merge: true });
+                }
+            }, (error) => {
+                // ADDED ERROR HANDLER
+                console.error("Room Status Listener Error: Failed to fetch room status. Error:", error.message);
+            });
+            unsubscribeFunctions.push(unsubscribeRoom); // Store unsubscribe function
+
+            // 3. Listen for History Updates
+            const historyPath = `artifacts/${appId}/public/data/history`;
+            const historyQuery = query(collection(db, historyPath), orderBy('timestamp', 'desc'));
+            const unsubscribeHistory = onSnapshot(historyQuery, (snapshot) => {
+                const historyList = document.getElementById('history-list');
+                historyList.innerHTML = '';
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    historyList.insertAdjacentHTML('beforeend', `
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-400 card-hover">
+                            <p class="font-semibold text-lg text-gray-800">${data.title}</p>
+                            <p class="text-sm text-gray-500">Watched on: ${new Date(data.timestamp?.seconds * 1000).toLocaleDateString()} at ${new Date(data.timestamp?.seconds * 1000).toLocaleTimeString()}</p>
+                            <a href="${data.url}" target="_blank" class="text-blue-500 text-xs hover:underline">${data.url.substring(0, 50)}...</a>
+                        </div>
+                    `);
+                });
+            }, (error) => {
+                // ADDED ERROR HANDLER
+                console.error("History Listener Error: Failed to fetch history. Error:", error.message);
+            });
+            unsubscribeFunctions.push(unsubscribeHistory); // Store unsubscribe function
+            
+            listenersAttached = true;
+        }
+
+        // --- User Actions ---
+
+        window.sendChatMessage = async (event) => {
+            event.preventDefault();
+            if (!db) return console.error("Database not initialized.");
+
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+
+            if (message === "") return;
+
+            try {
+                const chatPath = `artifacts/${appId}/public/data/chat`;
+                const user = auth.currentUser;
+                
+                await addDoc(collection(db, chatPath), {
+                    message: message,
+                    userId: user.uid,
+                    userName: user.displayName || 'Guest',
+                    isAdmin: isAdmin,
+                    timestamp: serverTimestamp(),
+                });
+                input.value = '';
+            } catch (e) {
+                console.error("Error sending message: ", e);
+            }
+        }
+
+        window.signOutUser = async () => {
+            if (!auth) return;
+            try {
+                // Stop listeners before signing out
+                unsubscribeFunctions.forEach(unsub => unsub());
+                unsubscribeFunctions = [];
+                listenersAttached = false;
+                
+                await signOut(auth);
+                
+                // After sign out, the onAuthStateChanged listener will handle the UI update
+                isAdmin = false;
+                document.getElementById('tab-admin').classList.add('hidden');
+                document.getElementById('admin-panel-button').classList.add('hidden');
+                document.getElementById('auth-status').textContent = 'Signed out';
+                // Sign back in anonymously to keep database connection
+                await signInAnonymously(auth);
+            } catch (e) {
+                console.error("Error signing out:", e);
+            }
+        }
+
+        window.showAdminLoginModal = () => {
+            document.getElementById('admin-login-modal').classList.remove('hidden');
+            document.getElementById('admin-login-status').textContent = '';
+        }
+
+        window.adminLogin = async () => {
+            const username = document.getElementById('admin-username-input').value;
+            const password = document.getElementById('admin-password-input').value;
+            const statusDiv = document.getElementById('admin-login-status');
+            
+            statusDiv.textContent = 'Checking credentials...';
+            statusDiv.classList.remove('text-red-500');
+            statusDiv.classList.add('text-gray-500');
+
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('admin-login-modal').classList.add('hidden');
+                document.getElementById('tab-admin').classList.remove('hidden');
+                document.getElementById('admin-panel-button').classList.remove('hidden');
+                document.getElementById('auth-status').textContent += ' (ADMIN)';
+                statusDiv.textContent = 'Admin login successful!';
+                statusDiv.classList.add('text-green-500');
+                switchView('admin-tools');
+            } else {
+                isAdmin = false;
+                statusDiv.textContent = 'Invalid username or password.';
+                statusDiv.classList.add('text-red-500');
+                statusDiv.classList.remove('text-gray-500');
+            }
+        }
+
+        window.logCurrentMovieToHistory = async () => {
+            if (!db || !isAdmin) return;
+
+            const roomDocRef = doc(db, `artifacts/${appId}/public/data/room/status`);
+            const docSnap = await getDoc(roomDocRef);
+            
+            if (docSnap.exists() && docSnap.data().currentMovieTitle) {
+                const data = docSnap.data();
+                const historyPath = `artifacts/${appId}/public/data/history`;
+                
+                await addDoc(collection(db, historyPath), {
+                    title: data.currentMovieTitle,
+                    url: data.currentVideoUrl || 'No URL provided',
+                    timestamp: serverTimestamp(),
+                });
+                document.getElementById('admin-panel-modal').classList.add('hidden');
+            } else {
+                // Using console.error instead of alert per instructions
+                console.error("Cannot log to history: Current movie title is not set.");
+                // NOTE: Use of modal/div instead of alert per instructions (simplified here for brevity)
+            }
+        }
+
+        window.setRoomStatus = async () => {
+            if (!db || !isAdmin) return;
+            const status = document.getElementById('admin-status-input').value;
+            const roomDocRef = doc(db, `artifacts/${appId}/public/data/room/status`);
+            await setDoc(roomDocRef, { status: status, statusTimestamp: serverTimestamp() }, { merge: true });
+            document.getElementById('admin-panel-modal').classList.add('hidden');
+        }
+        
+        /**
+         * Core function to update the watch party content in Firestore.
+         * Includes validation and clearer UI feedback.
+         */
+        window.updateRoomContentInFirestore = async (title, url) => {
+            if (!db || !isAdmin) return;
+            const statusDiv = document.getElementById('ai-summary-status');
+
+            if (!title || title.trim() === "") {
+                console.error("Update failed: Movie/Video Title is required.");
+                statusDiv.textContent = "Update failed: Movie/Video Title is required.";
+                statusDiv.classList.add('text-red-500');
+                statusDiv.classList.remove('text-green-500');
+                return;
+            }
+            
+            // Clear previous success/error messages
+            statusDiv.textContent = "";
+            statusDiv.classList.remove('text-red-500');
+            statusDiv.classList.remove('text-green-500');
+
+            const roomDocRef = doc(db, `artifacts/${appId}/public/data/room/status`);
+            
+            // --- FIX: Added explicit logging before write for confirmation ---
+            console.log(`[Firestore Write] Attempting to set content. Title: "${title}", URL: "${url}"`);
+            
+            await setDoc(roomDocRef, { 
+                currentMovieTitle: title, 
+                currentVideoUrl: url, 
+                aiSummary: null 
+            }, { merge: true });
+            
+            console.log("Watch Party content updated successfully!");
+            
+            // --- FIX: Added explicit UI confirmation after write ---
+            statusDiv.textContent = `Content updated successfully: Title: "${title}", URL: "${url || 'No URL'}"`;
+            statusDiv.classList.add('text-green-500');
+        }
+
+        window.updateWatchPartyContent = async () => {
+            if (!db || !isAdmin) return;
+            const title = document.getElementById('content-title-input').value;
+            const url = document.getElementById('content-url-input').value;
+
+            // Call the core function with the values read from the inputs
+            await updateRoomContentInFirestore(title, url);
+        }
+
+        // --- View Navigation ---
+
+        window.switchView = (viewId) => {
+            const sections = ['watch-section', 'explore-section', 'history-section', 'admin-tools-section'];
+            sections.forEach(id => {
+                const element = document.getElementById(id); // Added null check
+                if (element) {
+                    element.classList.add('hidden');
+                }
+            });
+            
+            const targetSection = document.getElementById(`${viewId}-section`);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Update tab styles
+            const tabs = ['watch', 'explore', 'history', 'admin-tools'];
+            tabs.forEach(tab => {
+                const tabElement = document.getElementById(`tab-${tab}`); // Added null check
+                if (tabElement) {
+                    tabElement.classList.remove('active');
+                }
+            });
+
+            const targetTab = document.getElementById(`tab-${viewId}`);
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+        }
+
+        // --- Explore (Mock API) ---
+
+        const MOCK_MOVIES = [
+            // Note: Using publicly available trailer links or short clips for safety
+            { id: 1, title: "The Martian (Trailer)", year: 2015, genre: "Sci-Fi", rating: 8.0, imageUrl: "https://placehold.co/400x600/1e40af/ffffff?text=Martian", mockUrl: "https://www.youtube.com/watch?v=Ej28fJ0d0Xw" },
+            { id: 2, title: "Inception (Trailer)", year: 2010, genre: "Thriller", rating: 8.8, imageUrl: "https://placehold.co/400x600/1e40af/ffffff?text=Inception", mockUrl: "https://www.youtube.com/watch?v=YoHD9XEIncM" },
+            { id: 3, title: "Eternal Sunshine (Clip)", year: 2004, genre: "Romance", rating: 8.3, imageUrl: "https://placehold.co/400x600/1e40af/ffffff?text=Eternal+Sunshine", mockUrl: "https://www.youtube.com/watch?v=gS6YjJ7Nn5w" },
+            { id: 4, title: "Game of Thrones (Teaser)", year: 2011, genre: "Fantasy", rating: 9.2, imageUrl: "https://placehold.co/400x600/1e40af/ffffff?text=Game+of+Thrones", mockUrl: "https://www.youtube.com/watch?v=rlR4Qj49q7k" },
+        ];
+
+        function loadExploreMovies(movies = MOCK_MOVIES) {
+            const grid = document.getElementById('explore-movie-grid');
+            grid.innerHTML = '';
+            
+            movies.forEach(movie => {
+                grid.insertAdjacentHTML('beforeend', `
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 card-hover fade-in">
+                        <img src="${movie.imageUrl}" alt="${movie.title}" class="w-full h-64 object-cover">
+                        <div class="p-4">
+                            <h3 class="text-xl font-bold text-gray-800">${movie.title}</h3>
+                            <p class="text-sm text-gray-500">${movie.year} | ${movie.genre}</p>
+                            <div class="flex justify-between items-center mt-3">
+                                <span class="text-lg font-semibold text-yellow-600"><i class="fas fa-star mr-1"></i>${movie.rating}</span>
+                                ${isAdmin ? `<button onclick="setExploreMovie('${movie.title.replace(/'/g, "\\'")}', '${movie.mockUrl.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition transform hover:scale-105">Set as Current</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        window.filterExploreMovies = () => {
+            const searchTerm = document.getElementById('explore-search').value.toLowerCase();
+            const filtered = MOCK_MOVIES.filter(movie => 
+                movie.title.toLowerCase().includes(searchTerm) || 
+                movie.genre.toLowerCase().includes(searchTerm)
+            );
+            loadExploreMovies(filtered);
+        }
+
+        window.setExploreMovie = async (title, url) => {
+            if (!isAdmin) return console.error("Only administrators can set the current movie.");
+            
+            // Bypass input fields and update Firestore directly using the new core function
+            await updateRoomContentInFirestore(title, url);
+            
+            // Update the input fields for visual feedback in Admin tab
+            document.getElementById('content-title-input').value = title;
+            document.getElementById('content-url-input').value = url;
+
+            switchView('watch');
+        }
+
+        // --- AI (Gemini) API Functions ---
+
+        window.generateAISummary = async () => {
+            if (!isAdmin) return;
+            
+            const title = document.getElementById('content-title-input').value || currentRoomData.currentMovieTitle;
+            const statusDiv = document.getElementById('ai-summary-status');
+            
+            if (!title) {
+                statusDiv.textContent = "Please set a movie title first in Content Management.";
+                return;
+            }
+
+            statusDiv.textContent = `Generating summary for "${title}"... (This may take a moment)`;
+            statusDiv.classList.remove('text-red-500'); // Ensure status is not red during processing
+            statusDiv.classList.remove('text-green-500');
+            const generateBtn = document.getElementById('generate-ai-summary-btn');
+            generateBtn.disabled = true;
+
+            const systemPrompt = "Act as a film historian and provide a concise, engaging summary (2-3 sentences) of the movie/show, followed by two interesting facts in a bulleted list. The entire response must be formatted in HTML and based strictly on Google Search results.";
+            const userQuery = `Find the summary, genre, and two interesting facts about the movie or TV show: "${title}"`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const response = await fetchWithBackoff(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    let sourcesHtml = '';
+                    const groundingMetadata = candidate.groundingMetadata;
+
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        const sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({ uri: attribution.web?.uri, title: attribution.web?.title }))
+                            .filter(source => source.uri && source.title);
+                        
+                        if (sources.length > 0) {
+                            sourcesHtml = '<div class="mt-4 pt-2 border-t border-gray-200"><p class="text-xs font-semibold">Sources:</p><ul class="list-disc list-inside space-y-0.5">';
+                            sources.slice(0, 3).forEach(s => {
+                                sourcesHtml += `<li><a href="${s.uri}" target="_blank" class="text-blue-500 hover:underline">${s.title.substring(0, 50)}...</a></li>`;
+                            });
+                            sourcesHtml += '</ul></div>';
+                        }
+                    }
+
+                    const finalHtml = `<div class="text-sm">${text}${sourcesHtml}</div>`;
+                    
+                    // Save to Firestore so everyone sees it
+                    const roomDocRef = doc(db, `artifacts/${appId}/public/data/room/status`);
+                    await updateDoc(roomDocRef, { aiSummary: finalHtml });
+                    
+                    statusDiv.textContent = "Summary generated and shared successfully!";
+                    statusDiv.classList.add('text-green-500');
+
+                } else {
+                    throw new Error("API response was empty or malformed.");
+                }
+            } catch (error) {
+                console.error("AI Summary Generation Error:", error);
+                statusDiv.textContent = `Error generating summary. Please check console.`;
+                statusDiv.classList.add('text-red-500');
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+
+        // --- External API (Ice and Fire) ---
+
+        window.searchWesterosCharacter = async () => {
+            const input = document.getElementById('westeros-search-input');
+            const resultsDiv = document.getElementById('westeros-results');
+            const characterName = input.value.trim();
+
+            if (!characterName) {
+                resultsDiv.innerHTML = '<p class="text-red-500">Please enter a character name.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p class="text-blue-500">Searching the Citadel archives...</p>';
+            
+            try {
+                // Step 1: Search for the character by name
+                const searchUrl = `https://anapioficeandfire.com/api/characters?name=${encodeURIComponent(characterName)}`;
+                const searchResponse = await fetch(searchUrl);
+                const searchData = await searchResponse.json();
+
+                if (searchData.length === 0) {
+                    resultsDiv.innerHTML = `<p class="text-red-500">Character "${characterName}" not found.</p>`;
+                    return;
+                }
+
+                // Step 2: Display the first result
+                const character = searchData[0];
+                const titles = character.titles.filter(t => t);
+                const aliases = character.aliases.filter(a => a !== characterName);
+
+                resultsDiv.innerHTML = `
+                    <div class="space-y-2">
+                        <p class="font-bold text-lg text-yellow-700">${character.name || 'Unknown Character'}</p>
+                        <p><strong>Gender:</strong> ${character.gender || 'N/A'}</p>
+                        <p><strong>Culture:</strong> ${character.culture || 'Unknown'}</p>
+                        <p><strong>Born:</strong> ${character.born || 'Unknown'}</p>
+                        <p><strong>Titles:</strong> ${titles.join(', ') || 'None'}</p>
+                        <p><strong>Aliases:</strong> ${aliases.join(', ') || 'None'}</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error("Westeros API Error:", error);
+                resultsDiv.innerHTML = '<p class="text-red-500">Error fetching data from Westeros API.</p>';
+            }
+        }
+
+        // --- Application Startup ---
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
